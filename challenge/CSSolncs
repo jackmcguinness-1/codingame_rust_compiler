@@ -1,0 +1,595 @@
+using System;
+using System.Linq;
+using System.IO;
+using System.Text;
+using System.Collections;
+using System.Collections.Generic;
+
+/**
+ * Auto-generated code below aims at helping you parse
+ * the standard input according to the problem statement.
+ **/
+
+class Vec2_int{
+    public int x;
+    public int y;
+
+    public Vec2_int(){
+        x = 0;
+        y = 0;
+    }
+
+    public Vec2_int(int x, int y){
+        this.x = x;
+        this.y = y;
+    }
+
+    public Vec2_int(Vec2_double v){
+        x = (int)v.x;
+        y = (int)v.y;
+    }
+
+    public static Vec2_int operator+(Vec2_int v1, Vec2_int v2){
+        return new Vec2_int(v1.x+v2.x, v1.y+v2.y);
+    }
+
+    public static Vec2_int operator-(Vec2_int v1, Vec2_int v2){
+        return new Vec2_int(v1.x-v2.x, v1.y-v2.y);
+    }
+
+    public static Vec2_int operator*(int a, Vec2_int v){
+        return new Vec2_int(a * v.x, a * v.y);
+    }
+
+    public static Vec2_int operator*(Vec2_int v, int a){
+        return new Vec2_int(a * v.x, a * v.y);
+    }
+
+    public static Vec2_double operator*(double a, Vec2_int v){
+        return new Vec2_double(a * v.x, a * v.y);
+    }
+
+    public int dot(Vec2_int v){
+        return x*v.x + y*v.y;
+    }
+
+    public double dot(Vec2_double v){
+        return x*v.x + y*v.y;
+    }
+
+    public double norm(){
+        return Math.Sqrt(x*x + y*y);
+    }
+
+    public Vec2_double ToDouble(){
+        return new Vec2_double(this);
+    }
+
+}
+
+class Vec2_double{
+    public double x;
+    public double y;
+
+    public Vec2_double(){
+        x = 0;
+        y = 0;
+    }
+
+    public Vec2_double(double x, double y){
+        this.x = x;
+        this.y = y;
+    }
+
+    public Vec2_double(Vec2_int v){
+        x = (double)v.x;
+        y = (double)v.y;
+    }
+
+    public static Vec2_double operator+(Vec2_double v1, Vec2_double v2){
+        return new Vec2_double(v1.x+v2.x, v1.y+v2.y);
+    }
+
+    public static Vec2_double operator-(Vec2_double v1, Vec2_double v2){
+        return new Vec2_double(v1.x-v2.x, v1.y-v2.y);
+    }
+
+    public static Vec2_double operator*(double a, Vec2_double v){
+        return new Vec2_double(a * v.x, a * v.y);
+    }
+
+    public static Vec2_double operator*(Vec2_double v, int a){
+        return new Vec2_double(a * v.x, a * v.y);
+    }
+
+    public double dot(Vec2_double v){
+        return x*v.x + y*v.y;
+    }
+
+    public double dot(Vec2_int v){
+        return x*v.x + y*v.y;
+    }
+
+    public double norm(){
+        return Math.Sqrt(x*x + y*y);
+    }
+
+    public Vec2_int ToInt(){
+        return new Vec2_int(this);
+    }
+
+    public static Vec2_double getUnit(double angle = 0){
+        double newX = Math.Cos(angle);
+        double newY = Math.Sin(angle);
+        return new Vec2_double(newX, newY);
+    }
+
+    public Vec2_double rotated(double angle){
+        double newX = x*Math.Cos(angle) - y*Math.Sin(angle);
+        double newY = x*Math.Sin(angle) + y*Math.Cos(angle);
+        return new Vec2_double(newX, newY);
+    }
+
+}
+
+class PlayerData{
+    public int BaseHealth;
+    public int Mana;
+
+    public void parseData(string data){
+        string[] inputs = data.Split(" ");
+        BaseHealth = Int32.Parse(inputs[0]);
+        Mana = Int32.Parse(inputs[1]);
+    }
+}
+
+class MapData{
+    public static Vec2_int basePos;
+    public static Vec2_int enemyBasePos;
+    public static int heroesPerPlayer;
+    public static Vec2_int mapSize = new Vec2_int(17630, 9000);
+    public static double diagonal;
+    public static Vec2_int center;
+
+    public static void parseData(string data){
+        string[] inputs = data.Split(" ");
+        int baseX = int.Parse(inputs[0]); // The corner of the map representing your base
+        int baseY = int.Parse(inputs[1]);
+        basePos = new Vec2_int(baseX, baseY);
+        heroesPerPlayer = int.Parse(Console.ReadLine()); // Always 3
+        enemyBasePos = mapSize - basePos;
+        diagonal = (basePos - enemyBasePos).norm();
+        center = (0.5 * mapSize.ToDouble()).ToInt();
+    }
+
+}
+
+enum ActionType{
+    NONE,
+    WIND,
+    SHIELD,
+    CONTROL
+}
+
+class Action{
+    public int targetId;
+    public ActionType actionType;
+    public Vec2_int targetPos;
+    public bool inRange;
+
+    public Action(){
+        ;
+    }
+
+    public Action(int targetId, ActionType actionType, Vec2_int targetPos){
+        this.targetId = targetId;
+        this.actionType = actionType;
+        this.targetPos = targetPos;
+    }
+
+    public override string ToString(){
+        string outputStr;
+        switch(actionType){
+            case ActionType.NONE:
+                outputStr = "";
+                break;
+            case ActionType.WIND:
+                outputStr = $"WIND {targetPos.x} {targetPos.y}";
+                break;
+            case ActionType.SHIELD:
+                outputStr = $"SHIELD {targetId}";
+                break;
+            case ActionType.CONTROL:
+                outputStr = $"CONTROL {targetId} {targetPos.x} {targetPos.y}";
+                break;
+            default:
+                outputStr = "";
+                throw new NotImplementedException();
+                break;
+        }
+        return outputStr;
+    }
+}
+
+class Entity{
+    public static List<Mob> AllMobs;
+    public static List<Hero> FriendlyHeroes;
+    public static List<Hero> EnemyHeroes;
+
+    public static List<Mob> TargetedMobs;
+    public static List<Mob> TargetedForWindMobs;
+
+    public static PlayerData myData;
+    public static PlayerData enemyData;
+
+    public string inputStr;
+    public int id;
+    public int type;
+    public Vec2_int pos;
+    public int shieldLife;
+    public int isControlled;
+    public int health;
+    public Vec2_int vel;
+    public int nearBase;
+    public int threatFor;
+
+    public void parseData(string data){
+        inputStr = data;
+        string[] inputs = data.Split(' ');
+        id = int.Parse(inputs[0]); // Unique identifier
+        type = int.Parse(inputs[1]); // 0=monster, 1=your hero, 2=opponent hero
+        int x = int.Parse(inputs[2]); // Position of this entity
+        int y = int.Parse(inputs[3]);
+        pos = new Vec2_int(x, y);
+        shieldLife = int.Parse(inputs[4]); // Ignore for this league; Count down until shield spell fades
+        isControlled = int.Parse(inputs[5]); // Ignore for this league; Equals 1 when this entity is under a control spell
+        health = int.Parse(inputs[6]); // Remaining health of this monster
+        int vx = int.Parse(inputs[7]); // Trajectory of this monster
+        int vy = int.Parse(inputs[8]);
+        vel = new Vec2_int(vx, vy);
+        nearBase = int.Parse(inputs[9]); // 0=monster with no target yet, 1=monster targeting a base
+        threatFor = int.Parse(inputs[10]); //
+    }
+
+    public static Mob getMobById(int id){
+        Console.Error.WriteLine($"looking for mob id: {id}");
+        return AllMobs.Where( mob => (mob.id == id) ).First();
+    }
+
+
+}
+
+class Hero : Entity{
+
+    public Hero(Entity e){
+        parseData(e.inputStr);
+    }
+
+    public double defenderPriority(Mob candidate){
+        double s = 0;
+        // sort by near to base first
+        s += 10*( MapData.diagonal - (candidate.pos - MapData.basePos).norm() ); // this fixes a scale
+        // now sort by if it will reach base
+        s += candidate.threatFor == 1 ? MapData.diagonal : 0;
+        // now sort by how close it is to the hero
+        s += (MapData.diagonal - (candidate.pos - pos).norm() );
+        // if shielded need to prioritise
+        s += (candidate.shieldLife > 0 ? MapData.diagonal : 0);
+        return s;
+    }
+
+    public int getDefenderTargetId(){
+        // this is to get the most critical target for the defender
+        int candidateId;
+
+        //List<Mob> candidates = Entity.AllMobs.Where( mob => !Entity.TargetedMobs.Contains(mob) ).ToList();
+        List<Mob> candidates = Entity.AllMobs.Where( mob => ((MapData.basePos - mob.pos).norm() < 7000) ).ToList();
+        List<Mob> orderedCandidates = candidates.OrderBy( mob => defenderPriority(mob) ).ToList();
+        
+        if(orderedCandidates.Count() > 0){
+            Mob candidate = orderedCandidates.Last();
+            candidateId = candidate.id;
+        }
+        else{ // this bit is actually redundant now, but leaving it incase i revert
+            // now allow to search for one already targeted
+            candidates = Entity.AllMobs;
+            orderedCandidates = candidates.OrderBy( mob => defenderPriority(mob) ).ToList();
+            if(orderedCandidates.Count() > 0){
+                Mob candidate = orderedCandidates.Last();
+                candidateId = candidate.id;
+            }
+            else{
+                candidateId = -1;
+            }
+        }
+
+        return candidateId;
+    }
+
+    public Mob findClosestMob(){
+        double closestDist = 99999;
+        Mob closestMob = null;
+        for(int i = 0; i < Entity.AllMobs.Count(); i++){
+            Mob candidate = Entity.AllMobs[i];
+            double dist = (candidate.pos - pos).norm();
+            if(dist < closestDist){
+                closestDist = dist;
+                closestMob = candidate;
+            }
+        }
+        return closestMob;
+    }
+
+    public double actionPriority(Action action){
+        if(action.actionType == ActionType.WIND){
+            return 5;
+        }
+        else if(action.actionType == ActionType.CONTROL){
+            return 1;
+        }
+        else if(action.actionType == ActionType.SHIELD){
+            return 2;
+        }
+        else{
+            return 0;
+        }
+    }
+
+    public Action getAction(){
+        Action action = new Action();
+
+        List<Action> candidateActions = new List<Action>();
+        
+        for(int i = 0; i < Entity.AllMobs.Count(); i++){
+            Mob candidate = Entity.AllMobs[i];
+            double distanceToEnemyBase = (candidate.pos - MapData.enemyBasePos).norm();
+            double distanceToSelf = (candidate.pos - pos).norm();
+
+            Vec2_double targetMobVel = 1/( candidate.vel.norm() ) * (candidate.vel).ToDouble();
+            Vec2_double targetMobDirectionToBase = 1/((MapData.enemyBasePos - candidate.pos).norm()) * (MapData.enemyBasePos - candidate.pos).ToDouble();
+            
+            bool alreadyHeaded = candidate.threatFor == 2;
+            bool shielded = candidate.shieldLife > 0;
+            bool healthy = candidate.health > 10;
+            bool hasMana = Entity.myData.Mana >= 10;
+            bool surplusMana = Entity.myData.Mana >= 50;
+            
+            Console.Error.WriteLine($"{candidate.id}: {distanceToEnemyBase}");
+            if(hasMana && !shielded && distanceToEnemyBase <= (5000 + 1280)){
+                Action newAction = new Action(candidate.id, ActionType.WIND, MapData.enemyBasePos);
+                bool inRange = distanceToSelf <= 1280;
+                newAction.inRange = inRange;
+                candidateActions.Add(newAction);
+            }
+            if(distanceToEnemyBase < 5000){
+                Console.Error.WriteLine($"trying to shield {candidate.id}");
+                Action newAction = new Action(candidate.id, ActionType.SHIELD, MapData.enemyBasePos);
+                bool inRange = distanceToSelf <= 2200;
+                candidateActions.Add(newAction);
+            }
+            if(surplusMana && healthy && !alreadyHeaded && distanceToSelf < 2200){
+                Action newAction = new Action(candidate.id, ActionType.CONTROL, MapData.enemyBasePos);
+                newAction.inRange = true;
+                candidateActions.Add(newAction);
+            }
+        }
+
+        if(candidateActions.Count() == 0 ){
+            Console.Error.WriteLine("no worthwhile action");
+            return null;
+        }
+        else{
+            List<Action> sortedActions = candidateActions.OrderBy(actionPriority).ToList();
+            action = sortedActions.Last();
+            Console.Error.WriteLine($"doing action: {action.actionType.ToString()}");
+            return action;
+        }
+    }
+
+    public string getRoamerResponse(){
+        //return "WAIT";
+        Vec2_int anchor = (0.5*MapData.center + 0.5*MapData.enemyBasePos).ToInt();
+
+        // first check if there's anything worth sending at the enemy
+        Action action = getAction();
+
+        if(action != null){
+            if(action.inRange){
+                return $"SPELL {action.ToString()}";
+            }
+            else{
+                Mob targetMob = Entity.getMobById(action.targetId);
+                return $"MOVE {targetMob.pos.x} {targetMob.pos.y}";
+            }
+        }
+        else{
+            // kill closest mob (or not if it's too far away)
+            Mob closestMob = findClosestMob();
+            if(closestMob != null){
+                Console.Error.WriteLine($"closest mob: {closestMob.id}");
+            }
+
+            if( closestMob == null || (closestMob.pos - MapData.enemyBasePos ).norm() > 8000 ){
+                return $"MOVE {anchor.x} {anchor.y}";
+            }
+            else{
+                return $"MOVE {closestMob.pos.x} {closestMob.pos.y}";
+            }
+        }
+    }
+
+    public string getDefenderResponse(){
+        int targetId = getDefenderTargetId();
+        string outputStr;
+        if(targetId == -1){
+        // spread out
+        // double angle = id * Math.Pow(-1, id) * Math.PI/6; // this is a bit saucy
+        // Vec2_double lineToEnemyBase = (MapData.enemyBasePos - MapData.basePos).ToDouble();
+        // Vec2_int target = MapData.basePos + (5000*((1/lineToEnemyBase.norm()) * lineToEnemyBase).rotated(angle)).ToInt();
+        //Vec2_int target = MapData.basePos + (5000 * Vec2_double.getUnit(angle)).ToInt();
+
+        Vec2_int target;
+        Console.Error.WriteLine($"id: {id}");
+        int id_offset = id - Entity.FriendlyHeroes[1].id; // friendly heroes 0 will be the roamer
+        Console.Error.WriteLine($"id_offset: {id_offset}");
+        if(MapData.basePos.x == 0){ // top corner
+            double angle = (id_offset * Math.PI/4) + Math.PI/8;
+            Console.Error.WriteLine($"angle: {angle}");
+            target = MapData.basePos + (5000 * Vec2_double.getUnit(angle)).ToInt();
+        }
+        else{ // bottom corner
+            double angle = (id_offset * Math.PI/4) + Math.PI + Math.PI/8;
+            Console.Error.WriteLine($"angle: {angle}");
+            target = MapData.basePos + (5000 * Vec2_double.getUnit(angle)).ToInt();
+        }
+
+        outputStr = $"MOVE {target.x} {target.y}";
+        }
+        else{
+            Mob targetMob = Entity.getMobById(targetId);
+            if(!Entity.TargetedMobs.Contains(targetMob)){
+                Entity.TargetedMobs.Add(targetMob);
+            }
+
+            Vec2_int target = targetMob.pos;
+            Vec2_int targetToBase = MapData.basePos - target;
+            Vec2_int currentToTarget = target - pos;
+            Vec2_int repulseDirn = -1000 * targetToBase;
+
+            bool hasMana = Entity.myData.Mana >= 10;
+            bool inRadiusToWind = (pos - target).norm() <= 1280;
+            bool windedByOther = Entity.TargetedForWindMobs.Where( mob => mob.id == targetMob.id ).Count() > 0;
+            bool windIsNeeded = (target - MapData.basePos).norm() < 2000;
+            Console.Error.WriteLine($"targeted: {Entity.TargetedMobs.Count()}");
+
+            Vec2_double targetMobVel = 1/( targetMob.vel.norm() ) * (targetMob.vel).ToDouble();
+            Vec2_double targetMobDirectionToBase = 1/((MapData.enemyBasePos - targetMob.pos).norm()) * (MapData.enemyBasePos - targetMob.pos).ToDouble();
+            bool alreadyHeaded = targetMobVel.dot(targetMobDirectionToBase) > 0.8;
+
+            bool inRadiusToControl = (pos - target).norm() <= 2200;
+            bool tooCloseToBase = (target - MapData.basePos).norm() <= 5000;
+            bool isShielded = targetMob.shieldLife > 0;
+            bool isControlled = targetMob.isControlled > 0;
+
+            bool easyTarget = targetMob.health < 15;
+            double mobDistanceToBase = ((targetMob.pos - MapData.basePos).norm() - 300);
+            double mobSpeed = 400;
+            bool willSurviveToBase = targetMob.health/2 >= mobDistanceToBase / mobSpeed;
+            bool surplusMana = Entity.myData.Mana > 100;
+
+            bool controlConditions = !isControlled && hasMana && inRadiusToControl && !tooCloseToBase && !alreadyHeaded  && !isShielded && willSurviveToBase;
+            bool controlWithSurplus = !isControlled && hasMana && inRadiusToControl && !tooCloseToBase && !alreadyHeaded  && !isShielded && surplusMana;
+            
+            bool windConditions = hasMana && inRadiusToWind && !windedByOther && windIsNeeded && !isShielded && willSurviveToBase;
+            bool windWithSurplus = hasMana && inRadiusToWind && !windedByOther && !isShielded && surplusMana;
+
+            if(controlConditions || controlWithSurplus){
+                target = MapData.enemyBasePos;
+                outputStr = $"SPELL CONTROL {targetMob.id} {target.x} {target.y}";
+            }
+            else if(windConditions || windWithSurplus){
+                if(!Entity.TargetedForWindMobs.Contains(targetMob)){
+                    Entity.TargetedForWindMobs.Add(targetMob);
+                }
+                outputStr = $"SPELL WIND {repulseDirn.x} {repulseDirn.y}";
+            }
+            else{
+                outputStr = $"MOVE {target.x} {target.y}";
+            }
+        }
+        return outputStr;
+    }
+
+    public string getResponse(){
+        string outputStr;
+        
+        if(id == Entity.FriendlyHeroes[0].id){
+            outputStr = getRoamerResponse();
+        }
+        else{
+            outputStr = getDefenderResponse();
+        }
+        return outputStr;
+    }
+}
+
+class Mob : Entity{
+    public Mob(Entity e){
+        parseData(e.inputStr);
+    }
+
+    public double distanceToMyBase(){
+        return (MapData.basePos - pos).norm();
+    }
+}
+
+class Player
+{
+    static void Main(string[] args)
+    {
+        string mapInfo = Console.ReadLine();
+        MapData.parseData(mapInfo);
+
+        PlayerData self = new PlayerData();
+        PlayerData enemy = new PlayerData();
+
+        List<Hero> myHeroes = new List<Hero>();
+        List<Hero> enemyHeroes = new List<Hero>();
+        List<Mob> mobs = new List<Mob>();
+
+        // game loop
+        while (true)
+        {
+            // load in self and enemy player data
+            string selfData = Console.ReadLine();
+            self.parseData(selfData);
+            string enemyData = Console.ReadLine();
+            enemy.parseData(enemyData);
+
+            Entity.myData = self;
+            Entity.enemyData = enemy;
+
+            myHeroes = new List<Hero>();
+            enemyHeroes = new List<Hero>();
+            mobs = new List<Mob>();
+
+            int entityCount = int.Parse(Console.ReadLine()); // Amount of heros and monsters you can see
+            for (int i = 0; i < entityCount; i++)
+            {
+                string entityData = Console.ReadLine();
+                Entity newEntity = new Entity();
+                newEntity.parseData(entityData);
+                switch(newEntity.type){
+                    case 0:
+                        mobs.Add( new Mob(newEntity) );
+                        break;
+                    case 1:
+                        myHeroes.Add( new Hero(newEntity) );
+                        break;
+                    case 2:
+                        enemyHeroes.Add( new Hero(newEntity) );
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+
+            Entity.AllMobs = mobs;
+            Entity.FriendlyHeroes = myHeroes;
+            Entity.EnemyHeroes = enemyHeroes;
+            Entity.TargetedMobs = new List<Mob>();
+            Entity.TargetedForWindMobs = new List<Mob>();
+
+            // Console.Error.WriteLine($"my heroes : {myHeroes.Count()}");
+            // Console.Error.WriteLine($"mobs : {mobs.Count()}");
+            // Console.Error.WriteLine($"enemy heroes : {enemyHeroes.Count()}");
+
+            for (int i = 0; i < MapData.heroesPerPlayer; i++)
+            {
+                // In the first league: MOVE <x> <y> | WAIT; In later leagues: | SPELL <spellParams>;
+                string heroResponse = myHeroes[i].getResponse();
+                Console.WriteLine(heroResponse);
+            }
+        }
+    }
+}
